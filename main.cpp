@@ -1,15 +1,17 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <windows.h>
 #include <ctime>
+#include <string>
 
 using namespace std;
 
 struct games_counts
 {
-    int wins = 0;
-    int lose = 0;
+    int wins;
+    int lose;
 };
 
 void create_empty_board(char board[10][10]) {
@@ -88,8 +90,44 @@ void print_boards(const char board1[10][10], const char board2[10][10], bool hid
     cout << endl;
 }
 
+void save_counts_to_file(const games_counts& gamecount, const string& filename) {
+    ofstream outFile(filename, ios::app);
+    if (outFile.is_open()) {
+        outFile << "Wins: " << gamecount.wins << ' ' << "Lose: " << gamecount.lose << endl;
+        outFile.close();
+    }
+}
+
+void load_last_counts_from_file(games_counts& gamecount, const string& filename) {
+    ifstream inFile(filename);
+    if (inFile.is_open()) {
+        string line;
+        string lastLine;
+
+        while (getline(inFile, line)) {
+            lastLine = line;
+        }
+
+        inFile.close();
+
+        if (!lastLine.empty()) {
+            istringstream iss(lastLine);
+            string wins_str, lose_str;
+            iss >> wins_str >> gamecount.wins >> lose_str >> gamecount.lose;
+        }
+        else {
+            gamecount.wins = 0;
+            gamecount.lose = 0;
+        }
+    }
+    else {
+        gamecount.wins = 0;
+        gamecount.lose = 0;
+    }
+}
+//
 void save_board_to_file(const char board[10][10], const string& filename) {
-    ofstream file(filename);
+    ofstream file(filename, ios::app); // Open file in append mode
     if (file.is_open()) {
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
@@ -97,17 +135,27 @@ void save_board_to_file(const char board[10][10], const string& filename) {
             }
             file << '\n';
         }
+        file << endl; // Add a newline to separate game states
         file.close();
     }
 }
-
+//
 void load_board_from_file(char board[10][10], const string& filename) {
     ifstream file(filename);
     if (file.is_open()) {
-        for (int i = 0; i < 10; ++i) {
-            for (int j = 0; j < 10; ++j) {
-                file >> board[i][j];
+        string line;
+        int row = 0;
+        while (getline(file, line)) {
+            if (row >= 10) break; // Skip lines after the first 10
+            for (int col = 0; col < 10; ++col) {
+                if (col < line.size()) {
+                    board[row][col] = line[col];
+                }
+                else {
+                    board[row][col] = '~';
+                }
             }
+            row++;
         }
         file.close();
     }
@@ -386,11 +434,17 @@ void load_game_state(char player1_board[10][10], char player2_board[10][10]) {
 int main() {
     bool gamecontinue = true;
 
+    games_counts gamecount;
+    gamecount.wins = 0;
+    gamecount.lose = 0;
+    string filename = "games_counts.txt";
+
+    load_last_counts_from_file(gamecount, filename);
+
     while (gamecontinue)
     {
         srand(time(0));
 
-        games_counts gamecount;
         char player1_board[10][10];
         char player2_board[10][10];
 
@@ -467,9 +521,10 @@ int main() {
                 gamecount.lose++;
                 game_over = true;
             }
-
             save_game_state(player1_board, player2_board);
         }
+        save_counts_to_file(gamecount, filename);
+
         set_color(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
         cout << "Number of victories: " << gamecount.wins << endl;
         set_color(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
@@ -477,19 +532,14 @@ int main() {
         cout << "Number of defeats: " << gamecount.lose << endl << endl;
         set_color(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 
-        char gameagaine;
-        cout << "Start the game all over again? (y/n): ";
-        cin >> gameagaine;
-        if (gameagaine == 'y' || gameagaine == 'Y') {
-            gamecontinue = true;
-        }
-        else
-        {
-            return gamecontinue = false;
+        int main_menu_choice;
+        cout << "1. Start new game\n2. Exit\nEnter your choice: ";
+        cin >> main_menu_choice;
+
+        if (main_menu_choice == 2) {
+            gamecontinue = false;
         }
     }
-
-    system("pause");
 
     return 0;
 }
