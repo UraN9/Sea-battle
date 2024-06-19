@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <ctime>
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -125,39 +126,65 @@ void load_last_counts_from_file(games_counts& gamecount, const string& filename)
         gamecount.lose = 0;
     }
 }
-//
+
 void save_board_to_file(const char board[10][10], const string& filename) {
-    ofstream file(filename, ios::app); // Open file in append mode
+    ofstream file(filename, ios::app);
     if (file.is_open()) {
+        file << "10 10\n";
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
                 file << board[i][j] << ' ';
             }
             file << '\n';
         }
-        file << endl; // Add a newline to separate game states
+        file << "----\n";
         file.close();
     }
+    else {
+        cerr << "Could not open file for writing: " << filename << endl;
+    }
 }
-//
+
 void load_board_from_file(char board[10][10], const string& filename) {
     ifstream file(filename);
     if (file.is_open()) {
         string line;
-        int row = 0;
+        vector<string> lines;
+
         while (getline(file, line)) {
-            if (row >= 10) break; // Skip lines after the first 10
-            for (int col = 0; col < 10; ++col) {
-                if (col < line.size()) {
-                    board[row][col] = line[col];
-                }
-                else {
-                    board[row][col] = '~';
-                }
-            }
-            row++;
+            lines.push_back(line);
         }
+
         file.close();
+
+        int separator_index = -1;
+        for (int i = lines.size() - 1; i >= 0; --i) {
+            if (lines[i] == "----") {
+                separator_index = i;
+                break;
+            }
+        }
+
+        if (separator_index == -1) {
+            cerr << "No valid board state found in file: " << filename << endl;
+            return;
+        }
+
+        int board_start_index = separator_index - 10;
+        if (board_start_index < 0) {
+            cerr << "Invalid board state in file: " << filename << endl;
+            return;
+        }
+
+        for (int i = 0; i < 10; ++i) {
+            istringstream iss(lines[board_start_index + i]);
+            for (int j = 0; j < 10; ++j) {
+                iss >> board[i][j];
+            }
+        }
+    }
+    else {
+        cerr << "Could not open file for reading: " << filename << endl;
     }
 }
 
